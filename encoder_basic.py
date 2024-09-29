@@ -18,15 +18,15 @@ from torch.utils.data import DataLoader, Dataset
 train_batch_size = 16
 eval_batch_size = 8
 # Number of tokens processed in a single sequence
-context_length = 512
+context_length = 1024
 train_split = 0.7  # Percentage of data to use for training
 learning_rate = 1e-3
 # used to define size of embeddings
 d_model = 1024
 # Number of epochs
-num_epochs = 10
+num_epochs = 100
 # Number of workers
-nw = 4
+nw = 6
 
 
 def print_time(t1, message):
@@ -135,4 +135,5 @@ def main():
 if __name__ == "__main__":
     if sys.platform == "win32":
         mp.set_start_method('spawn')
+        torch.set_num_threads(6)
     main()

@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 def top_k_logits(logits, k):
     # Only keep the top k logits,
     # set the rest to -inf so they don't get sampled
@@ -45,7 +46,6 @@ class MyGPT(nn.Module):
 
         return logits, loss
 
-
     def generate(self, input_ids, max_new_tokens, temperature=1.0, top_k=10):
         # Ensure generated_ids is a flat list
         generated_ids = input_ids.squeeze(0).tolist()
@@ -74,3 +74,7 @@ class MyGPT(nn.Module):
         return torch.tensor(
             generated_ids,
             dtype=torch.long).unsqueeze(0).to(input_ids.device)
+
+
+if __name__ == "__main__":
+    pass

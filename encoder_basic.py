@@ -12,35 +12,8 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-
-
-# Parameters
-TRAIN_BATCH_SIZE = 16
-EVAL_BATCH_SIZE = 8
-# Number of tokens processed in a single sequence
-CONTEXT_LENGTH = 1024
-# Percentage of data to use for training
-TRAIN_SPLIT = 0.7
-LEARNING_RATE = 1e-3
-# used to define size of embeddings
-D_MODEL = 1024
-# Number of epochs
-NUM_EPOCHS = 100
-# Number of workers
-NUM_WORKERS = 1
-# Number of threads
-NUM_THREADS = 1
-
-
-def print_time(t1, message):
-    # Calculate elapsed time
-    t2 = time.time()
-    elapsed_time = t2 - t1
-    minutes, seconds = divmod(int(elapsed_time), 60)
-    # Print the message with the time in mm:ss format
-    print(f"{message}: {minutes:02}:{seconds:02}")
-    # Return the current time (t2) for further tracking
-    return t2
+from mod_config import basic_cfg as cfg
+from mod_logging import UtilityLogger as ul
 
 
 class TokenDataset(Dataset):
@@ -63,8 +36,10 @@ class TokenDataset(Dataset):
 def main(train_batch_size, eval_batch_size, context_length, train_split,
          learning_rate, d_model, num_epochs, nw, nt, continue_training):
     start_time = time.time()
-    t1 = print_time(start_time, "Continuing.." if continue_training
-                    else "Start..")
+    ul.set_variable('start_time', start_time)
+
+    t1 = ul.print_time(start_time, "Continuing.." if continue_training
+                       else "Start..")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -92,8 +67,8 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         eval_loader = DataLoader(eval_dataset, batch_size=eval_batch_size,
                                  shuffle=False)
 
-    t1 = print_time(start_time, "Continuing training.." if continue_training
-                    else "Start training..")
+    t1 = ul.print_time(start_time, "Continuing training.." if continue_training
+                       else "Start training..")
 
     # Initialize model
     model = GPT(vocab_size=vocab_size, d_model=d_model).to(device)
@@ -128,7 +103,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             total_loss += loss.item()
 
         avg_tl = total_loss / len(train_loader)
-        t1 = print_time(
+        t1 = ul.print_time(
             t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
             f"Loss: {avg_tl:.4f}")
 
@@ -143,7 +118,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
                 eval_loss += loss.item()
 
         avg_evl = eval_loss / len(eval_loader)
-        t1 = print_time(
+        t1 = ul.print_time(
             t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
             f"Eval Loss: {avg_evl:.4f}")
 
@@ -154,38 +129,38 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         'state_dict': model.state_dict()
     }, './build/gpt_model.pth')
 
-    print_time(start_time, "End.")
+    ul.print_time(start_time, "End.")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-tbs", "--train_batch_size", type=int, default=TRAIN_BATCH_SIZE,
+        "-tbs", "--train_batch_size", type=int, default=cfg.TRAIN_BATCH_SIZE,
         help="Training batch size")
     parser.add_argument(
-        "-ebs", "--eval_batch_size", type=int, default=EVAL_BATCH_SIZE,
+        "-ebs", "--eval_batch_size", type=int, default=cfg.EVAL_BATCH_SIZE,
         help="Evaluation batch size")
     parser.add_argument(
-        "-cl", "--context_length", type=int, default=CONTEXT_LENGTH,
+        "-cl", "--context_length", type=int, default=cfg.CONTEXT_LENGTH,
         help="Context length")
     parser.add_argument(
-        "-ts", "--train_split", type=float, default=TRAIN_SPLIT,
+        "-ts", "--train_split", type=float, default=cfg.TRAIN_SPLIT,
         help="Train/test split percentage")
     parser.add_argument(
-        "-lr", "--learning_rate", type=float, default=LEARNING_RATE,
+        "-lr", "--learning_rate", type=float, default=cfg.LEARNING_RATE,
         help="Learning rate")
     parser.add_argument(
-        "-dm", "--d_model", type=int, default=D_MODEL,
+        "-dm", "--d_model", type=int, default=cfg.D_MODEL,
         help="Size of embeddings (d_model)")
     parser.add_argument(
-        "-e", "--num_epochs", type=int, default=NUM_EPOCHS,
+        "-e", "--num_epochs", type=int, default=cfg.NUM_EPOCHS,
         help="Number of epochs")
     parser.add_argument(
-        "-nw", "--nw", type=int, default=NUM_WORKERS,
+        "-nw", "--nw", type=int, default=cfg.NUM_WORKERS,
         help="Number of workers")
     parser.add_argument(
-        "-nt", "--nt", type=int, default=NUM_THREADS,
+        "-nt", "--nt", type=int, default=cfg.NUM_THREADS,
         help="Number of threads")
     parser.add_argument(
         "-c", "--continue_training", action="store_true", default=False,

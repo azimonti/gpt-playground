@@ -43,7 +43,7 @@ class UtilityLogger:
 
     @classmethod
     def print_message(cls, message):
-        print(f"Message: {message}")
+        print(f"{message}")
 
 
 if __name__ == "__main__":

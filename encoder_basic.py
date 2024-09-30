@@ -85,6 +85,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         start_epoch = checkpoint['num_epochs']  # Load the epoch number
 
     # Continue or start training
+    ts = time.time()
     for epoch in range(start_epoch, start_epoch + num_epochs):
         model.train()
         total_loss = 0
@@ -121,6 +122,14 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         t1 = ul.print_time(
             t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
             f"Eval Loss: {avg_evl:.4f}")
+        # Calculate and display the estimated completion time
+        elapsed_time = t1 - ts
+        remaining_epochs = (start_epoch + num_epochs) - (epoch + 1)
+        est_completion = time.time() + (
+            elapsed_time / (epoch + 1) * remaining_epochs)
+        completion_time = time.strftime(
+            "%H:%M", time.localtime(est_completion))
+        ul.print_message(f"Estimated completion at {completion_time}")
 
     torch.save({
         'vocab_size': vocab_size,

@@ -23,7 +23,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load the model configuration and state_dict
-    checkpoint = torch.load('./build/gpt_model.pth', weights_only=False)
+    checkpoint = torch.load('./build/gpt_model_100.pth', weights_only=False)
     vocab_size = checkpoint['vocab_size']
     d_model = checkpoint['d_model']
 
@@ -32,14 +32,16 @@ def main():
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 
-    def generate_text(model, start_sequence, max_new_tokens):
-        # Generate text function
+    def generate_text(model, start_sequence, max_new_tokens,
+                      temperature=1.0, top_k=10):
         # Encode the start sequence
         input_ids = [vocab[token] for token in start_sequence.split()]
         input_ids = torch.tensor(
             input_ids, dtype=torch.long).unsqueeze(0).to(device)
-        generated_ids = model.generate(input_ids, max_new_tokens)
-        # Decode to text
+        # Generate new tokens using temperature and top_k
+        generated_ids = model.generate(
+            input_ids, max_new_tokens, temperature=temperature, top_k=top_k)
+        # Decode the generated token IDs back to text
         return [id_to_token[idx] for idx in generated_ids.squeeze(0).tolist()]
 
     # Example usage

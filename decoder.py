@@ -13,7 +13,7 @@ from gpt import MyGPT as GPT
 
 def main():
     # Load the tokenizer data (vocab and token tensor)
-    tokenizer_data = torch.load('./build/tokenized_data.pkl',
+    tokenizer_data = torch.load('./runs/tokenized_data.pkl',
                                 weights_only=False)
     vocab = tokenizer_data['vocab']
 
@@ -23,7 +23,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Load the model configuration and state_dict
-    checkpoint = torch.load('./build/gpt_model_100.pth', weights_only=False)
+    checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
     vocab_size = checkpoint['vocab_size']
     d_model = checkpoint['d_model']
 

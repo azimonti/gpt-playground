@@ -19,7 +19,7 @@ basic_cfg = SimpleNamespace(
     # Learning rate
     LEARNING_RATE=1e-3,
     # Used to define size of embeddings
-    D_MODEL=1024,
+    D_MODEL=32,
     # Number of epochs
     NUM_EPOCHS=100,
     # Number of workers

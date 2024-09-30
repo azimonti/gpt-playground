@@ -12,8 +12,12 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
+from torch.utils.tensorboard import SummaryWriter
 from mod_config import basic_cfg as cfg
 from mod_logging import UtilityLogger as ul
+
+# Initialize TensorBoard writer
+writer = SummaryWriter()
 
 
 class TokenDataset(Dataset):
@@ -43,7 +47,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    data = torch.load('./build/tokenized_data.pkl', weights_only=False)
+    data = torch.load('./runs/tokenized_data.pkl', weights_only=False)
     token_tensor = data['token_tensor']
     vocab = data['vocab']
     vocab_size = len(vocab)
@@ -80,7 +84,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
 
     # If continue_training is set to True, load the model and optimizer states
     if continue_training:
-        checkpoint = torch.load('./build/gpt_model.pth', weights_only=False)
+        checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         start_epoch = checkpoint['num_epochs']  # Load the epoch number
 
@@ -90,7 +94,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         model.train()
         total_loss = 0
 
-        for batch in train_loader:
+        for i, batch in enumerate(train_loader):
             # Take all tokens except the last one as inputs
             inputs = batch[:, :-1].to(device)
             # Shift inputs by one token for targets
@@ -102,6 +106,11 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             optimizer.step()
 
             total_loss += loss.item()
+            # Log training loss every N batches
+            if i % 10 == 0:
+                writer.add_scalar(
+                    'Training Loss',
+                    loss.item(), epoch * len(train_loader) + i)
 
         avg_tl = total_loss / len(train_loader)
         t1 = ul.print_time(
@@ -119,6 +128,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
                 eval_loss += loss.item()
 
         avg_evl = eval_loss / len(eval_loader)
+        writer.add_scalar('Validation Loss', avg_evl, epoch)
         t1 = ul.print_time(
             t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
             f"Eval Loss: {avg_evl:.4f}")
@@ -136,8 +146,8 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         'd_model': d_model,
         'num_epochs': num_epochs + start_epoch,
         'state_dict': model.state_dict()
-    }, './build/gpt_model.pth')
-
+    }, './runs/gpt_model.pth')
+    writer.close()
     ul.print_time(start_time, "End.")
 
 

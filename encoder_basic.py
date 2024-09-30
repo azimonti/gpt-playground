@@ -134,9 +134,12 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             f"Eval Loss: {avg_evl:.4f}")
         # Calculate and display the estimated completion time
         elapsed_time = t1 - ts
+        # Epochs completed in the current run
+        completed_epochs = epoch + 1 - start_epoch
         remaining_epochs = (start_epoch + num_epochs) - (epoch + 1)
+        # Remaining epochs in the current run
         est_completion = time.time() + (
-            elapsed_time / (epoch + 1) * remaining_epochs)
+            elapsed_time / completed_epochs * remaining_epochs)
         completion_time = time.strftime(
             "%H:%M", time.localtime(est_completion))
         ul.print_message(f"Estimated completion at {completion_time}")

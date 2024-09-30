@@ -6,27 +6,30 @@
 /*    2024/09/29    */
 /********************/
 '''
+import argparse
 from gpt import MyGPT as GPT
 import multiprocessing as mp
-import sys
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 
 # Parameters
-train_batch_size = 16
-eval_batch_size = 8
+TRAIN_BATCH_SIZE = 16
+EVAL_BATCH_SIZE = 8
 # Number of tokens processed in a single sequence
-context_length = 1024
-train_split = 0.7  # Percentage of data to use for training
-learning_rate = 1e-3
+CONTEXT_LENGTH = 1024
+# Percentage of data to use for training
+TRAIN_SPLIT = 0.7
+LEARNING_RATE = 1e-3
 # used to define size of embeddings
-d_model = 1024
+D_MODEL = 1024
 # Number of epochs
-num_epochs = 100
+NUM_EPOCHS = 100
 # Number of workers
-nw = 6
+NUM_WORKERS = 1
+# Number of threads
+NUM_THREADS = 1
 
 
 def print_time(t1, message):
@@ -57,9 +60,11 @@ class TokenDataset(Dataset):
         return self.data_tensor[start:end]
 
 
-def main():
+def main(train_batch_size, eval_batch_size, context_length, train_split,
+         learning_rate, d_model, num_epochs, nw, nt, continue_training):
     start_time = time.time()
-    t1 = print_time(start_time, "Start..")
+    t1 = print_time(start_time, "Continuing.." if continue_training
+                    else "Start..")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -76,18 +81,36 @@ def main():
     # DataLoader
     train_dataset = TokenDataset(train_tensor, context_length)
     eval_dataset = TokenDataset(eval_tensor, context_length)
-    train_loader = DataLoader(train_dataset, batch_size=train_batch_size,
-                              shuffle=True, num_workers=nw)
-    eval_loader = DataLoader(eval_dataset, batch_size=eval_batch_size,
-                             shuffle=False, num_workers=nw)
+    if nw > 1:
+        train_loader = DataLoader(train_dataset, batch_size=train_batch_size,
+                                  shuffle=True, num_workers=nw)
+        eval_loader = DataLoader(eval_dataset, batch_size=eval_batch_size,
+                                 shuffle=False, num_workers=nw)
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=train_batch_size,
+                                  shuffle=True)
+        eval_loader = DataLoader(eval_dataset, batch_size=eval_batch_size,
+                                 shuffle=False)
 
-    t1 = print_time(t1, "Start training..")
+    t1 = print_time(start_time, "Continuing training.." if continue_training
+                    else "Start training..")
+
     # Initialize model
     model = GPT(vocab_size=vocab_size, d_model=d_model).to(device)
+
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    for epoch in range(num_epochs):
+    start_epoch = 0
+
+    # If continue_training is set to True, load the model and optimizer states
+    if continue_training:
+        checkpoint = torch.load('./build/gpt_model.pth', weights_only=False)
+        model.load_state_dict(checkpoint['state_dict'])
+        start_epoch = checkpoint['num_epochs']  # Load the epoch number
+
+    # Continue or start training
+    for epoch in range(start_epoch, start_epoch + num_epochs):
         model.train()
         total_loss = 0
 
@@ -106,7 +129,8 @@ def main():
 
         avg_tl = total_loss / len(train_loader)
         t1 = print_time(
-            t1, f"Epoch [{epoch}/{num_epochs}], Loss: {avg_tl:.4f}")
+            t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
+            f"Loss: {avg_tl:.4f}")
 
         # Evaluate model on validation data
         model.eval()
@@ -120,12 +144,13 @@ def main():
 
         avg_evl = eval_loss / len(eval_loader)
         t1 = print_time(
-            t1, f"Epoch [{epoch}/{num_epochs}], Eval Loss: {avg_evl:.4f}")
+            t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
+            f"Eval Loss: {avg_evl:.4f}")
 
-    # Save model configuration and state_dict together
     torch.save({
         'vocab_size': vocab_size,
         'd_model': d_model,
+        'num_epochs': num_epochs + start_epoch,
         'state_dict': model.state_dict()
     }, './build/gpt_model.pth')
 
@@ -133,7 +158,55 @@ def main():
 
 
 if __name__ == "__main__":
-    if sys.platform == "win32":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "-tbs", "--train_batch_size", type=int, default=TRAIN_BATCH_SIZE,
+        help="Training batch size")
+    parser.add_argument(
+        "-ebs", "--eval_batch_size", type=int, default=EVAL_BATCH_SIZE,
+        help="Evaluation batch size")
+    parser.add_argument(
+        "-cl", "--context_length", type=int, default=CONTEXT_LENGTH,
+        help="Context length")
+    parser.add_argument(
+        "-ts", "--train_split", type=float, default=TRAIN_SPLIT,
+        help="Train/test split percentage")
+    parser.add_argument(
+        "-lr", "--learning_rate", type=float, default=LEARNING_RATE,
+        help="Learning rate")
+    parser.add_argument(
+        "-dm", "--d_model", type=int, default=D_MODEL,
+        help="Size of embeddings (d_model)")
+    parser.add_argument(
+        "-e", "--num_epochs", type=int, default=NUM_EPOCHS,
+        help="Number of epochs")
+    parser.add_argument(
+        "-nw", "--nw", type=int, default=NUM_WORKERS,
+        help="Number of workers")
+    parser.add_argument(
+        "-nt", "--nt", type=int, default=NUM_THREADS,
+        help="Number of threads")
+    parser.add_argument(
+        "-c", "--continue_training", action="store_true", default=False,
+        help="Whether to continue training from a checkpoint")
+
+    args = parser.parse_args()
+
+    if args.nw > 1:
         mp.set_start_method('spawn')
-        torch.set_num_threads(6)
-    main()
+    if args.nt > 1:
+        torch.set_num_threads(args.nt)
+
+    main(
+        train_batch_size=args.train_batch_size,
+        eval_batch_size=args.eval_batch_size,
+        context_length=args.context_length,
+        train_split=args.train_split,
+        learning_rate=args.learning_rate,
+        d_model=args.d_model,
+        num_epochs=args.num_epochs,
+        nw=args.nw,
+        nt=args.nt,
+        continue_training=args.continue_training
+    )

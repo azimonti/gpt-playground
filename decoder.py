@@ -9,7 +9,6 @@
 import io
 import torch
 import sys
-import unicodedata
 from gpt import MyGPT as GPT
 
 # Fix encoding to UTF-8
@@ -50,13 +49,7 @@ def main():
         generated_ids = model.generate(
             input_ids, max_new_tokens, temperature=temperature, top_k=top_k)
         # Decode the generated token IDs back to text
-        generated_sequence = ' '.join([id_to_token[idx] for idx in
-                                       generated_ids.squeeze(0).tolist()])
-
-        # Recompose accents (e.g., 'e' + '̀' -> 'è')
-        recomposed_sequence = unicodedata.normalize('NFC', generated_sequence)
-
-        return recomposed_sequence
+        return [id_to_token[idx] for idx in generated_ids.squeeze(0).tolist()]
 
     # Example usage
     start_sequence = "Nel mezzo del cammin di nostra vita"

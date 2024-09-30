@@ -7,7 +7,6 @@
 /*********************/
 '''
 import re
-import unicodedata
 import torch
 import sys
 import io
@@ -27,11 +26,8 @@ def main():
     # Custom preprocessing for numbers: Replace all numbers with a <NUM> token
     text = re.sub(r'\d+', '<NUM>', text)
 
-    # Normalize the text to separate base characters and accents
-    normalized_text = unicodedata.normalize('NFD', text)
-
     # Tokenize the text: match words, punctuation, and newlines
-    tokens = re.findall(r'<[^>]+>|[\w]+|[^\w\s]|\n+', normalized_text)
+    tokens = re.findall(r'<[^>]+>|[\w]+|[^\w\s]|\n+', text)
 
     # Add special tokens
     special_tokens = ["<PAD>", "<BOS>", "<EOS>", "<UNK>"]

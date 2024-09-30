@@ -15,6 +15,7 @@ import io
 # Fix encoding to UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
 
+
 def main():
     # Read the input file
     with open('./runs/input.txt', 'r', encoding='utf-8') as f:

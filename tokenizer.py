@@ -9,7 +9,11 @@
 import re
 import unicodedata
 import torch
+import sys
+import io
 
+# Fix encoding to UTF-8
+sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
 
 def main():
     # Read the input file
@@ -64,7 +68,7 @@ def main():
     print("First 30 Tokens:", tokens[:30])
     print("First 30 Token IDs:", token_ids[:30])
     print("Token Tensor Shape:", token_tensor.shape)
-    print("Vocabulary:", vocab)
+    # print("Vocabulary:", vocab)
 
 
 if __name__ == "__main__":

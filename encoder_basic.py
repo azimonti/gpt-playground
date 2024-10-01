@@ -12,7 +12,7 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-from mod_config import basic_cfg as cfg
+from mod_config import encoder_basic_cfg as cfg
 from mod_logging import TorchLogger, UtilityLogger as ul
 
 

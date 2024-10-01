@@ -7,8 +7,8 @@
 /********************/
 '''
 from types import SimpleNamespace
-# Parameters
-basic_cfg = SimpleNamespace(
+
+encoder_basic_cfg = SimpleNamespace(
     # Batch sizes
     TRAIN_BATCH_SIZE=16,
     EVAL_BATCH_SIZE=8,
@@ -30,6 +30,10 @@ basic_cfg = SimpleNamespace(
     EVAL_EPOCH_STEP=10
 )
 
+tokenizer_cfg = SimpleNamespace(
+    # Batch sizes
+    USE_BASIC_TOKENIZER=False
+)
 
 if __name__ == "__main__":
     pass

@@ -38,8 +38,6 @@ def main():
 
     def generate_text(model, start_sequence, max_new_tokens,
                       temperature=1.0, top_k=10):
-        # Convert the start sequence to lowercase for consistency with vocab
-        start_sequence = start_sequence.lower()
         # Encode the start sequence
         input_ids = [vocab.get(token, vocab["<UNK>"]) for token in
                      start_sequence.split()]

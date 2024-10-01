@@ -1,3 +1,4 @@
 numpy>=2.1.1
 torch>=2.4.1
 tensorboard>=2.18.0
+tiktoken>=0.7.0

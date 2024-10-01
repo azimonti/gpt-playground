@@ -25,7 +25,9 @@ basic_cfg = SimpleNamespace(
     # Number of workers
     NUM_WORKERS=1,
     # Number of threads
-    NUM_THREADS=1
+    NUM_THREADS=1,
+    # Validation Epoch Step
+    EVAL_EPOCH_STEP=10
 )
 
 

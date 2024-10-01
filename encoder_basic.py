@@ -12,12 +12,8 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.tensorboard import SummaryWriter
 from mod_config import basic_cfg as cfg
-from mod_logging import UtilityLogger as ul
-
-# Initialize TensorBoard writer
-writer = SummaryWriter()
+from mod_logging import TorchLogger, UtilityLogger as ul
 
 
 class TokenDataset(Dataset):
@@ -38,7 +34,8 @@ class TokenDataset(Dataset):
 
 
 def main(train_batch_size, eval_batch_size, context_length, train_split,
-         learning_rate, d_model, num_epochs, nw, nt, continue_training):
+         learning_rate, d_model, num_epochs, nw, nt, eval_epoch_step,
+         continue_training):
     start_time = time.time()
     ul.set_variable('start_time', start_time)
 
@@ -81,12 +78,19 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     start_epoch = 0
-
-    # If continue_training is set to True, load the model and optimizer states
+    log_dir = None
+    # If continue_training is set to True, load the model,
+    # optimizer states, and log directory
     if continue_training:
         checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
         start_epoch = checkpoint['num_epochs']  # Load the epoch number
+        vocab_size = checkpoint.get('vocab_size')  # Load vocab size
+        d_model = checkpoint.get('d_model')  # Load model dimension
+        log_dir = checkpoint.get('log_dir', None)  # Load log directory
+
+    # Initialize TorchLogger
+    logger = TorchLogger(log_dir=log_dir)
 
     # Continue or start training
     ts = time.time()
@@ -108,7 +112,7 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             total_loss += loss.item()
             # Log training loss every N batches
             if i % 10 == 0:
-                writer.add_scalar(
+                logger.add_scalar(
                     'Training Loss',
                     loss.item(), epoch * len(train_loader) + i)
 
@@ -117,21 +121,23 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
             f"Loss: {avg_tl:.4f}")
 
-        # Evaluate model on validation data
-        model.eval()
-        eval_loss = 0
-        with torch.no_grad():
-            for batch in eval_loader:
-                inputs = batch[:, :-1].to(device)
-                targets = batch[:, 1:].to(device)
-                logits, loss = model(inputs, targets)
-                eval_loss += loss.item()
+        if epoch % eval_epoch_step == 0:
+            # Evaluate model on validation data
+            model.eval()
+            eval_loss = 0
+            with torch.no_grad():
+                for batch in eval_loader:
+                    inputs = batch[:, :-1].to(device)
+                    targets = batch[:, 1:].to(device)
+                    logits, loss = model(inputs, targets)
+                    eval_loss += loss.item()
 
-        avg_evl = eval_loss / len(eval_loader)
-        writer.add_scalar('Validation Loss', avg_evl, epoch)
-        t1 = ul.print_time(
-            t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
-            f"Eval Loss: {avg_evl:.4f}")
+            avg_evl = eval_loss / len(eval_loader)
+            logger.add_scalar('Validation Loss', avg_evl, epoch)
+            t1 = ul.print_time(
+                t1, f"Epoch [{epoch}/{start_epoch + num_epochs}], "
+                f"Eval Loss: {avg_evl:.4f}")
+
         # Calculate and display the estimated completion time
         elapsed_time = t1 - ts
         # Epochs completed in the current run
@@ -144,13 +150,17 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             "%H:%M", time.localtime(est_completion))
         ul.print_message(f"Estimated completion at {completion_time}")
 
+    # Save model, training states, and log directory to continue training
     torch.save({
         'vocab_size': vocab_size,
         'd_model': d_model,
         'num_epochs': num_epochs + start_epoch,
-        'state_dict': model.state_dict()
+        'state_dict': model.state_dict(),
+        'log_dir': TorchLogger.get_log_dir()
     }, './runs/gpt_model.pth')
-    writer.close()
+
+    # Close the logger when done
+    TorchLogger.close()
     ul.print_time(start_time, "End.")
 
 
@@ -185,6 +195,9 @@ if __name__ == "__main__":
         "-nt", "--nt", type=int, default=cfg.NUM_THREADS,
         help="Number of threads")
     parser.add_argument(
+        "-es", "--eval-epoch-step", type=int, default=cfg.EVAL_EPOCH_STEP,
+        help="Number of threads")
+    parser.add_argument(
         "-c", "--continue_training", action="store_true", default=False,
         help="Whether to continue training from a checkpoint")
 
@@ -205,5 +218,6 @@ if __name__ == "__main__":
         num_epochs=args.num_epochs,
         nw=args.nw,
         nt=args.nt,
+        eval_epoch_step=args.eval_epoch_step,
         continue_training=args.continue_training
     )

@@ -41,25 +41,24 @@ def basic_generation(model, start_sequence, max_new_tokens, temperature,
 def advanced_generation(model, start_sequence, max_new_tokens,
                         vocab, device):
     """
-    Advanced generation using tiktoken,
-    ensuring the token IDs match the model's vocabulary.
+    Advanced generation using tiktoken, ensuring the token IDs
+    match the model's vocabulary.
     """
     with torch.no_grad():
         # Initialize tiktoken's GPT-2 tokenizer
         tokenizer = tiktoken.get_encoding("gpt2")
         # Encode the start sequence using tiktoken to get token IDs
         input_ids = tokenizer.encode(start_sequence)
-        # Convert tiktoken token IDs back to tokens (strings)
-        tokens = [tokenizer.decode([id]).strip() for id in input_ids]
-        # Map tokens to your model's token IDs using your custom vocabulary
-        model_input_ids = [vocab.get(token, vocab.get("<UNK>"))
-                           for token in tokens]
+        # Directly use the token IDs without decoding them back into text
+        # Ensure token IDs are valid for the model's vocabulary range
+        model_input_ids = [min(token, model.wte.num_embeddings - 1)
+                           for token in input_ids]
         # Convert to tensor and add batch dimension
         input_tensor = torch.tensor(model_input_ids, dtype=torch.long,
                                     device=device).unsqueeze(0)
         # Generate new tokens using your model
-        generated_ids = model.generate(input_tensor,
-                                       max_new_tokens=max_new_tokens)
+        generated_ids = model.generate(
+            input_tensor, max_new_tokens=max_new_tokens)
         # Reverse the vocab dictionary to map token IDs back to tokens
         id_to_token = {idx: token for token, idx in vocab.items()}
         # Convert generated token IDs back to tokens
@@ -67,7 +66,6 @@ def advanced_generation(model, start_sequence, max_new_tokens,
                             for idx in generated_ids.squeeze(0).tolist()]
         # Join tokens to form the generated text
         generated_text = ' '.join(generated_tokens)
-
         return generated_text
 
 

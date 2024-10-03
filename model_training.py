@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 '''
-/********************/
-/* encoder_basic.py */
-/*   Version 1.1    */
-/*    2024/10/02    */
-/********************/
+/*********************/
+/* model_training.py */
+/*    Version 1.1    */
+/*     2024/10/02    */
+/*********************/
 '''
 import argparse
 from gpt_basic import MyGPT as GPT_basic
@@ -13,7 +13,7 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-from mod_config import encoder_basic_cfg as cfg
+from mod_config import model_training_cfg as cfg
 from mod_logging import TorchLogger, UtilityLogger as ul
 
 

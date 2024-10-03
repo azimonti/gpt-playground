@@ -8,7 +8,7 @@
 '''
 from types import SimpleNamespace
 
-encoder_basic_cfg = SimpleNamespace(
+model_training_cfg = SimpleNamespace(
     # Batch sizes
     TRAIN_BATCH_SIZE=16,
     EVAL_BATCH_SIZE=8,

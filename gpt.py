@@ -39,17 +39,25 @@ class SingleHeadAttention(nn.Module):
         self.scale = 1.0 / math.sqrt(d_model)
 
     def forward(self, x):
+        seq_length = x.size(1)
         Q = self.query(x)
         K = self.key(x)
         V = self.value(x)
 
-        # Calculate attention scores
-        attn_weights = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
-        attn_weights = F.softmax(attn_weights, dim=-1)
+        # Compute attention scores
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
 
-        # Weighted sum of values
-        out = torch.matmul(attn_weights, V)
-        return out
+        # Apply causal mask to prevent attention to future tokens
+        mask = torch.triu(torch.ones(seq_length, seq_length),
+                          diagonal=1).bool().to(x.device)
+        attention_scores = attention_scores.masked_fill(mask, float('-inf'))
+
+        # Softmax normalization for attention weights
+        attention_weights = torch.softmax(attention_scores, dim=-1)
+
+        # Compute the weighted sum of the values
+        attention_output = torch.matmul(attention_weights, V)
+        return attention_output
 
 
 class FeedForwardNN(nn.Module):
@@ -65,8 +73,8 @@ class FeedForwardNN(nn.Module):
 
 
 def top_k_logits(logits, k):
-    # Only keep the top k logits,
-    # set the rest to -inf so they don't get sampled
+    # Only keep the top k logits, set the rest to -inf so they don't get
+    # sampled
     v, ix = torch.topk(logits, k)
     out = logits.clone()
     out[out < v[:, [-1]]] = -float('Inf')

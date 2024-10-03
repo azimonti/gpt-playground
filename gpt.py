@@ -184,34 +184,51 @@ class MyGPT(nn.Module):
 
         return logits, loss
 
-    def generate(self, input_ids, max_new_tokens, temperature=1.0, top_k=10):
-        # Ensure generated_ids is a flat list
-        generated_ids = input_ids.squeeze(0).tolist()
-        context_length = input_ids.size(1)
+    def generate(self, inputs, max_new_tokens, temperature=1.0,
+                 top_k=None, context_length=None):
+        """
+        Generate new tokens based on the input sequence
 
+        Parameters:
+        - inputs (torch.Tensor): The input sequence as token IDs.
+        - max_new_tokens (int): Number of new tokens to generate.
+        - temperature (float): Controls the randomness of predictions
+                by scaling logits.
+        - top_k (int): If specified, applies top-k sampling
+                to limit the candidate tokens.
+        - context_length (int): Length of the context window
+                for the input sequence.
+
+        Returns:
+        - output (torch.Tensor): Generated sequence
+                including the input sequence.
+        """
+        # Initialize the output with the input sequence
+        output = inputs.clone()
         for _ in range(max_new_tokens):
-            # Prepare the input tensor for the model
-            input_tensor = torch.tensor(
-                generated_ids[-context_length:],
-                dtype=torch.long).unsqueeze(0).to(input_ids.device)
-            # Forward pass through the model
-            logits, _ = self.forward(input_tensor)
-            # Get logits for the last token
-            next_token_logits = logits[:, -1, :]
-            # Apply temperature scaling
-            next_token_logits = next_token_logits / temperature
-            # Apply top-k sampling to limit the candidates
-            next_token_logits = top_k_logits(next_token_logits, top_k)
-            # Convert logits to probabilities
-            probs = F.softmax(next_token_logits, dim=-1)
-            # Sample the next token from the probability distribution
-            next_token_id = torch.multinomial(probs, num_samples=1).item()
-            # Append the predicted token ID to the sequence
-            generated_ids.append(next_token_id)
+            current_seq_length = output.size(1)
+            # Truncate inputs to respect the context length if specified
+            if context_length and current_seq_length > context_length:
+                inputs = output[:, -context_length:]
+            else:
+                inputs = output
 
-        return torch.tensor(
-            generated_ids,
-            dtype=torch.long).unsqueeze(0).to(input_ids.device)
+            # Forward pass through the model (doesn't need to pass targets)
+            logits, _ = self(inputs)
+            # Get logits for the last token in the sequence
+            logits = logits[:, -1, :]
+            # Apply temperature scaling to control randomness
+            logits = logits / temperature
+            # Optionally apply top-k sampling to limit candidate tokens
+            if top_k is not None:
+                logits = top_k_logits(logits, top_k)
+            # Convert logits to probabilities
+            probs = F.softmax(logits, dim=-1)
+            # Sample the next token from the probability distribution
+            next_token = torch.multinomial(probs, num_samples=1)
+            # Append the predicted token to the sequence
+            output = torch.cat([output, next_token], dim=1)
+        return output
 
 
 if __name__ == "__main__":

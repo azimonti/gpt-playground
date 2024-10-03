@@ -8,7 +8,12 @@
 '''
 from types import SimpleNamespace
 
-model_training_cfg = SimpleNamespace(
+tokenizer_cfg = SimpleNamespace(
+    # Use the simple tokenizer
+    USE_BASIC_TOKENIZER=False
+)
+
+training_model_cfg = SimpleNamespace(
     # Batch sizes
     TRAIN_BATCH_SIZE=16,
     EVAL_BATCH_SIZE=8,
@@ -40,9 +45,21 @@ model_training_cfg = SimpleNamespace(
     NUM_HEADS=8
 )
 
+
 tokenizer_cfg = SimpleNamespace(
     # Use the simple tokenizer
     USE_BASIC_TOKENIZER=False
+)
+
+run_model_cfg = SimpleNamespace(
+    # Whether to use the simple generation
+    USE_SIMPLE_GENERATION=False,
+    # Number of new tokens to generate
+    MAX_NEW_TOKENS=50,
+    # Temperature for sampling (controls randomness)
+    TEMPERATURE=1.0,
+    # Top-k sampling (limits candidate tokens)
+    TOP_K=10
 )
 
 if __name__ == "__main__":

@@ -52,8 +52,8 @@ def advanced_tokenizer(text):
 
 
 def main(use_simple_tokenizer):
-    print("using basic tokenizer" if use_simple_tokenizer else
-          "using tiktoken")
+    print("Using basic tokenizer" if use_simple_tokenizer else
+          "Using tiktoken")
     # Read the input file
     with open('./runs/input.txt', 'r', encoding='utf-8') as f:
         text = f.read()
@@ -93,8 +93,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--use_simple_tokenizer", action="store_true",
         default=cfg.USE_BASIC_TOKENIZER,
-        help="Whether to use the simple tokenizer"
-    )
+        help="Whether to use the simple tokenizer")
 
     args = parser.parse_args()
 

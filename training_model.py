@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 '''
 /*********************/
-/* model_training.py */
+/* training_model.py */
 /*    Version 1.1    */
 /*     2024/10/02    */
 /*********************/
@@ -13,7 +13,7 @@ import multiprocessing as mp
 import time
 import torch
 from torch.utils.data import DataLoader, Dataset
-from mod_config import model_training_cfg as cfg
+from mod_config import training_model_cfg as cfg
 from mod_logging import TorchLogger, UtilityLogger as ul
 
 
@@ -224,29 +224,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "-s", "--use_simple_model", action="store_true",
         default=cfg.USE_BASIC_MODEL,
-        help="Whether to use the simple model"
-    )
+        help="Whether to use the simple model")
     parser.add_argument(
         "-c", "--continue_training", action="store_true", default=False,
         help="Whether to continue training from a checkpoint")
-
     parser.add_argument(
         "-ml", "--max-length", type=int, default=cfg.MAX_LENGTH,
-        help="Maximum length of input sequences"
-    )
+        help="Maximum length of input sequences")
     parser.add_argument(
         "-hd", "--hidden-dimension", type=int, default=cfg.HIDDEN_DIMENSION,
-        help="Hidden dimension size"
-    )
+        help="Hidden dimension size")
     parser.add_argument(
         "-umh", "--use-multiple-head", action="store_true",
         default=cfg.USE_MULTIPLE_HEAD,
-        help="Whether to use multiple-head attention"
-    )
+        help="Whether to use multiple-head attention")
     parser.add_argument(
         "-nh", "--num-heads", type=int, default=cfg.NUM_HEADS,
-        help="Number of multiple heads"
-    )
+        help="Number of multiple heads")
     args = parser.parse_args()
 
     if args.nw > 1:

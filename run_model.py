@@ -38,34 +38,37 @@ def basic_generation(model, start_sequence, max_new_tokens, temperature,
     return [id_to_token[idx] for idx in generated_ids.squeeze(0).tolist()]
 
 
-def advanced_generation(model, start_sequence, max_new_tokens,
-                        vocab, device):
+def advanced_generation(model, start_sequence, max_new_tokens, vocab,
+                        device, temperature=1.0, top_k=10):
     """
-    Advanced generation using tiktoken, ensuring the token IDs
-    match the model's vocabulary.
+    Advanced generation using tiktoken,
+    ensuring the token IDs match the model's vocabulary.
     """
     with torch.no_grad():
         # Initialize tiktoken's GPT-2 tokenizer
         tokenizer = tiktoken.get_encoding("gpt2")
         # Encode the start sequence using tiktoken to get token IDs
         input_ids = tokenizer.encode(start_sequence)
-        # Directly use the token IDs without decoding them back into text
-        # Ensure token IDs are valid for the model's vocabulary range
-        model_input_ids = [min(token, model.wte.num_embeddings - 1)
-                           for token in input_ids]
+        # Map the token IDs from tiktoken directly to your model's vocab
+        model_input_ids = [vocab.get(tokenizer.decode([id]).strip(),
+                                     vocab.get("<UNK>")) for id in input_ids]
         # Convert to tensor and add batch dimension
-        input_tensor = torch.tensor(model_input_ids, dtype=torch.long,
-                                    device=device).unsqueeze(0)
-        # Generate new tokens using your model
+        input_tensor = torch.tensor(
+            model_input_ids, dtype=torch.long, device=device).unsqueeze(0)
+        # Generate new tokens using the model's built-in generation method
         generated_ids = model.generate(
-            input_tensor, max_new_tokens=max_new_tokens)
+            input_tensor,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k)
         # Reverse the vocab dictionary to map token IDs back to tokens
         id_to_token = {idx: token for token, idx in vocab.items()}
         # Convert generated token IDs back to tokens
-        generated_tokens = [id_to_token.get(idx, "<UNK>")
+        generated_tokens = [id_to_token.get(idx.item(), "<UNK>")
                             for idx in generated_ids.squeeze(0).tolist()]
         # Join tokens to form the generated text
         generated_text = ' '.join(generated_tokens)
+
         return generated_text
 
 

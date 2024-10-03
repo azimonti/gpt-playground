@@ -9,7 +9,8 @@
 import io
 import torch
 import sys
-from gpt import MyGPT as GPT
+from gpt_basic import MyGPT as GPT_basic
+from gpt import MyGPT as GPT_v2
 
 # Fix encoding to UTF-8
 sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
@@ -26,13 +27,17 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Load the model configuration and state_dict
+    # Load the data
     checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
     vocab_size = checkpoint['vocab_size']
     d_model = checkpoint['d_model']
+    use_simple_model = checkpoint['use_simple_model']
 
     # Initialize the model with loaded parameters
-    model = GPT(vocab_size=vocab_size, d_model=d_model).to(device)
+    if (use_simple_model):
+        model = GPT_basic(vocab_size=vocab_size, d_model=d_model).to(device)
+    else:
+        model = GPT_v2(vocab_size=vocab_size, d_model=d_model).to(device)
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 

@@ -2,8 +2,8 @@
 '''
 /********************/
 /* mod_config.py    */
-/*   Version 1.0    */
-/*    2024/09/30    */
+/*   Version 1.1    */
+/*    2024/01/02    */
 /********************/
 '''
 from types import SimpleNamespace
@@ -27,11 +27,13 @@ encoder_basic_cfg = SimpleNamespace(
     # Number of threads
     NUM_THREADS=1,
     # Validation Epoch Step
-    EVAL_EPOCH_STEP=10
+    EVAL_EPOCH_STEP=10,
+    # Use the simple model
+    USE_BASIC_MODEL=False
 )
 
 tokenizer_cfg = SimpleNamespace(
-    # Batch sizes
+    # Use the simple tokenizer
     USE_BASIC_TOKENIZER=False
 )
 

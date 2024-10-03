@@ -2,12 +2,13 @@
 '''
 /********************/
 /* encoder_basic.py */
-/*   Version 1.0    */
-/*    2024/09/29    */
+/*   Version 1.1    */
+/*    2024/10/02    */
 /********************/
 '''
 import argparse
-from gpt import MyGPT as GPT
+from gpt_basic import MyGPT as GPT_basic
+from gpt import MyGPT as GPT_v2
 import multiprocessing as mp
 import time
 import torch
@@ -35,8 +36,10 @@ class TokenDataset(Dataset):
 
 def main(train_batch_size, eval_batch_size, context_length, train_split,
          learning_rate, d_model, num_epochs, nw, nt, eval_epoch_step,
-         continue_training):
+         use_simple_model, continue_training):
     start_time = time.time()
+    print("Using basic model" if use_simple_model else
+          "Using advanced model")
     ul.set_variable('start_time', start_time)
 
     t1 = ul.print_time(start_time, "Continuing.." if continue_training
@@ -72,7 +75,10 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
                        else "Start training..")
 
     # Initialize model
-    model = GPT(vocab_size=vocab_size, d_model=d_model).to(device)
+    if (use_simple_model):
+        model = GPT_basic(vocab_size=vocab_size, d_model=d_model).to(device)
+    else:
+        model = GPT_v2(vocab_size=vocab_size, d_model=d_model).to(device)
 
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -156,7 +162,8 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         'd_model': d_model,
         'num_epochs': num_epochs + start_epoch,
         'state_dict': model.state_dict(),
-        'log_dir': TorchLogger.get_log_dir()
+        'log_dir': TorchLogger.get_log_dir(),
+        'use_simple_model': use_simple_model
     }, './runs/gpt_model.pth')
 
     # Close the logger when done
@@ -198,6 +205,11 @@ if __name__ == "__main__":
         "-es", "--eval-epoch-step", type=int, default=cfg.EVAL_EPOCH_STEP,
         help="Number of threads")
     parser.add_argument(
+        "-s", "--use_simple_model", action="store_true",
+        default=cfg.USE_BASIC_MODEL,
+        help="Whether to use the simple model"
+    )
+    parser.add_argument(
         "-c", "--continue_training", action="store_true", default=False,
         help="Whether to continue training from a checkpoint")
 
@@ -219,5 +231,6 @@ if __name__ == "__main__":
         nw=args.nw,
         nt=args.nt,
         eval_epoch_step=args.eval_epoch_step,
+        use_simple_model=args.use_simple_model,
         continue_training=args.continue_training
     )

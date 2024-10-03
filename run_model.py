@@ -37,7 +37,14 @@ def main():
     if (use_simple_model):
         model = GPT_basic(vocab_size=vocab_size, d_model=d_model).to(device)
     else:
-        model = GPT_v2(vocab_size=vocab_size, d_model=d_model).to(device)
+        use_multiple_head = checkpoint.get('use_multiple_head', False)
+        num_heads = checkpoint.get('num_heads', 8)  # Load number of heads
+        max_length = checkpoint.get('max_length', 5000)  # Load max length
+        hidden_dimension = checkpoint.get('hidden_dimension', 2048)
+        model = GPT_v2(
+            vocab_size=vocab_size, d_model=d_model, max_len=max_length,
+            hidden_dim=hidden_dimension, use_multiple_head=use_multiple_head,
+            num_heads=num_heads).to(device)
     model.load_state_dict(checkpoint['state_dict'])
     model.eval()
 

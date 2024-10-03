@@ -29,7 +29,15 @@ model_training_cfg = SimpleNamespace(
     # Validation Epoch Step
     EVAL_EPOCH_STEP=10,
     # Use the simple model
-    USE_BASIC_MODEL=False
+    USE_BASIC_MODEL=False,
+    # Maximum length of input sequences
+    MAX_LENGTH=5000,
+    # Hidden dimension
+    HIDDEN_DIMENSION=2048,
+    # Use multiple-head attention
+    USE_MULTIPLE_HEAD=True,
+    # Number of multiple heads
+    NUM_HEADS=8
 )
 
 tokenizer_cfg = SimpleNamespace(

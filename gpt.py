@@ -43,21 +43,66 @@ class SingleHeadAttention(nn.Module):
         Q = self.query(x)
         K = self.key(x)
         V = self.value(x)
-
         # Compute attention scores
         attention_scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
-
         # Apply causal mask to prevent attention to future tokens
         mask = torch.triu(torch.ones(seq_length, seq_length),
                           diagonal=1).bool().to(x.device)
         attention_scores = attention_scores.masked_fill(mask, float('-inf'))
-
         # Softmax normalization for attention weights
         attention_weights = torch.softmax(attention_scores, dim=-1)
-
         # Compute the weighted sum of the values
         attention_output = torch.matmul(attention_weights, V)
         return attention_output
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, num_heads):
+        super().__init__()
+        assert d_model % num_heads == 0, \
+            "d_model must be divisible by num_heads"
+        self.num_heads = num_heads
+        # Dimensionality of each attention head
+        self.head_dim = d_model // num_heads
+        # Linear layers to project input into query, key, and value vectors
+        self.query = nn.Linear(d_model, d_model)
+        self.key = nn.Linear(d_model, d_model)
+        self.value = nn.Linear(d_model, d_model)
+        # Final linear layer to project concatenated heads back to d_model
+        self.fc_out = nn.Linear(d_model, d_model)
+        self.scale = 1.0 / math.sqrt(self.head_dim)
+
+    def forward(self, x):
+        B, seq_length, d_model = x.shape
+        # Project input into query, key, and value vectors
+        Q = self.query(x)
+        K = self.key(x)
+        V = self.value(x)
+        # Split Q, K, V into multiple heads
+        # Shape: (B, num_heads, seq_length, head_dim)
+        Q = Q.view(B, seq_length, self.num_heads,
+                   self.head_dim).transpose(1, 2)
+        K = K.view(B, seq_length, self.num_heads,
+                   self.head_dim).transpose(1, 2)
+        V = V.view(B, seq_length, self.num_heads,
+                   self.head_dim).transpose(1, 2)
+        # Compute attention scores
+        attention_scores = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        # Apply causal mask to prevent attention to future tokens
+        mask = torch.triu(torch.ones(seq_length, seq_length),
+                          diagonal=1).bool().to(x.device)
+        attention_scores = attention_scores.masked_fill(mask, float('-inf'))
+        # Softmax normalization for attention weights
+        attention_weights = torch.softmax(attention_scores, dim=-1)
+        # Compute the weighted sum of the values
+        attention_output = torch.matmul(attention_weights, V)
+        # Concatenate the attention heads
+        attention_output = attention_output.transpose(
+            1, 2).contiguous().view(B, seq_length, d_model)
+        # Final linear layer to project concatenated heads back to d_model
+        out = self.fc_out(attention_output)
+
+        return out
 
 
 class FeedForwardNN(nn.Module):
@@ -82,14 +127,34 @@ def top_k_logits(logits, k):
 
 
 class MyGPT(nn.Module):
-    def __init__(self, vocab_size, d_model, max_len=5000, hidden_dim=2048):
+    def __init__(self, vocab_size, d_model, max_len=5000,
+                 hidden_dim=2048, use_multiple_head=True, num_heads=8):
+        """
+        Initializes the GPT model
+
+        Parameters:
+        - vocab_size (int): The size of the vocabulary.
+        - d_model (int): The dimensionality of the embeddings and model.
+        - num_heads (int): The number of attention heads
+                for multi-head attention (default: 8)
+        - max_len (int): The maximum length of input sequences (default: 5000)
+        - hidden_dim (int): The dimensionality of the hidden layer
+                in the feedforward network (default: 2048).
+        - use_multiple_head (bool): If True, uses multi-head attention;
+                if False, uses single-head attention (default: True).
+        """
         super().__init__()
         # Word token embeddings
         self.wte = nn.Embedding(vocab_size, d_model)
         # Positional encoding
         self.pe = PositionalEncoding(d_model, max_len)
-        # Attention layer
-        self.attention = SingleHeadAttention(d_model)
+
+        # Attention layer: Switch between single-head or multi-head attention
+        if use_multiple_head:
+            self.attention = MultiHeadAttention(d_model, num_heads)
+        else:
+            self.attention = SingleHeadAttention(d_model)
+
         # Feedforward neural network
         self.ffn = FeedForwardNN(d_model, hidden_dim)
         # Final layer norm
@@ -102,7 +167,7 @@ class MyGPT(nn.Module):
         embeddings = self.wte(inputs)
         # Add positional encoding
         embeddings = self.pe(embeddings)
-        # Apply attention
+        # Apply attention (either single or multi-head based on init flag)
         attn_output = self.attention(embeddings)
         # Pass through feedforward NN
         ffn_output = self.ffn(attn_output)

@@ -36,10 +36,17 @@ class TokenDataset(Dataset):
 
 def main(train_batch_size, eval_batch_size, context_length, train_split,
          learning_rate, d_model, num_epochs, nw, nt, eval_epoch_step,
-         use_simple_model, continue_training):
+         use_simple_model, max_length, hidden_dimension, use_multiple_head,
+         num_heads, continue_training):
     start_time = time.time()
-    print("Using basic model" if use_simple_model else
-          "Using advanced model")
+    if use_simple_model:
+        print("Using basic model")
+    else:
+        if use_multiple_head:
+            print("Using advanced model with multi-head attention")
+        else:
+            print("Using advanced model with single-head attention")
+
     ul.set_variable('start_time', start_time)
 
     t1 = ul.print_time(start_time, "Continuing.." if continue_training
@@ -78,15 +85,17 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
     if (use_simple_model):
         model = GPT_basic(vocab_size=vocab_size, d_model=d_model).to(device)
     else:
-        model = GPT_v2(vocab_size=vocab_size, d_model=d_model).to(device)
+        model = GPT_v2(
+            vocab_size=vocab_size, d_model=d_model, max_len=max_length,
+            hidden_dim=hidden_dimension, use_multiple_head=use_multiple_head,
+            num_heads=num_heads).to(device)
 
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     start_epoch = 0
     log_dir = None
-    # If continue_training is set to True, load the model,
-    # optimizer states, and log directory
+    # If continue_training is set to True, load the model and the parameters
     if continue_training:
         checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
         model.load_state_dict(checkpoint['state_dict'])
@@ -94,6 +103,10 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         vocab_size = checkpoint.get('vocab_size')  # Load vocab size
         d_model = checkpoint.get('d_model')  # Load model dimension
         log_dir = checkpoint.get('log_dir', None)  # Load log directory
+        use_multiple_head = checkpoint.get('use_multiple_head', False)
+        num_heads = checkpoint.get('num_heads', 8)  # Load number of heads
+        max_length = checkpoint.get('max_length', 5000)  # Load max length
+        hidden_dimension = checkpoint.get('hidden_dimension', 2048)
 
     # Initialize TorchLogger
     logger = TorchLogger(log_dir=log_dir)
@@ -156,14 +169,18 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
             "%H:%M", time.localtime(est_completion))
         ul.print_message(f"Estimated completion at {completion_time}")
 
-    # Save model, training states, and log directory to continue training
+    # Save model and the parameters
     torch.save({
         'vocab_size': vocab_size,
         'd_model': d_model,
         'num_epochs': num_epochs + start_epoch,
         'state_dict': model.state_dict(),
         'log_dir': TorchLogger.get_log_dir(),
-        'use_simple_model': use_simple_model
+        'use_simple_model': use_simple_model,
+        'use_multiple_head': use_multiple_head,  # Save multiple head setting
+        'num_heads': num_heads,  # Save number of heads
+        'max_length': max_length,  # Save max length
+        'hidden_dimension': hidden_dimension  # Save hidden dimension
     }, './runs/gpt_model.pth')
 
     # Close the logger when done
@@ -213,6 +230,23 @@ if __name__ == "__main__":
         "-c", "--continue_training", action="store_true", default=False,
         help="Whether to continue training from a checkpoint")
 
+    parser.add_argument(
+        "-ml", "--max-length", type=int, default=cfg.MAX_LENGTH,
+        help="Maximum length of input sequences"
+    )
+    parser.add_argument(
+        "-hd", "--hidden-dimension", type=int, default=cfg.HIDDEN_DIMENSION,
+        help="Hidden dimension size"
+    )
+    parser.add_argument(
+        "-umh", "--use-multiple-head", action="store_true",
+        default=cfg.USE_MULTIPLE_HEAD,
+        help="Whether to use multiple-head attention"
+    )
+    parser.add_argument(
+        "-nh", "--num-heads", type=int, default=cfg.NUM_HEADS,
+        help="Number of multiple heads"
+    )
     args = parser.parse_args()
 
     if args.nw > 1:
@@ -232,5 +266,9 @@ if __name__ == "__main__":
         nt=args.nt,
         eval_epoch_step=args.eval_epoch_step,
         use_simple_model=args.use_simple_model,
+        max_length=args.max_length,
+        hidden_dimension=args.hidden_dimension,
+        use_multiple_head=args.use_multiple_head,
+        num_heads=args.num_heads,
         continue_training=args.continue_training
     )

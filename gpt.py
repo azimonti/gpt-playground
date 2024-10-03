@@ -17,7 +17,8 @@ class PositionalEncoding(nn.Module):
         super(PositionalEncoding, self).__init__()  # Correct parent init call
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(torch.arange(
+            0, d_model, 2).float() * (-math.log(10000.0) / d_model))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)  # shape: (1, max_len, d_model)
@@ -28,6 +29,27 @@ class PositionalEncoding(nn.Module):
         x = x + self.pe[:, :seq_len]
         return x
 
+
+class SingleHeadAttention(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+        self.query = nn.Linear(d_model, d_model)
+        self.key = nn.Linear(d_model, d_model)
+        self.value = nn.Linear(d_model, d_model)
+        self.scale = 1.0 / math.sqrt(d_model)
+
+    def forward(self, x):
+        Q = self.query(x)
+        K = self.key(x)
+        V = self.value(x)
+
+        # Calculate attention scores
+        attn_weights = torch.matmul(Q, K.transpose(-2, -1)) * self.scale
+        attn_weights = F.softmax(attn_weights, dim=-1)
+
+        # Weighted sum of values
+        out = torch.matmul(attn_weights, V)
+        return out
 
 
 class FeedForwardNN(nn.Module):
@@ -58,6 +80,8 @@ class MyGPT(nn.Module):
         self.wte = nn.Embedding(vocab_size, d_model)
         # Positional encoding
         self.pe = PositionalEncoding(d_model, max_len)
+        # Attention layer
+        self.attention = SingleHeadAttention(d_model)
         # Feedforward neural network
         self.ffn = FeedForwardNN(d_model, hidden_dim)
         # Final layer norm
@@ -70,16 +94,18 @@ class MyGPT(nn.Module):
         embeddings = self.wte(inputs)
         # Add positional encoding
         embeddings = self.pe(embeddings)
+        # Apply attention
+        attn_output = self.attention(embeddings)
         # Pass through feedforward NN
-        embeddings = self.ffn(embeddings)
+        ffn_output = self.ffn(attn_output)
         # (batch_size, sequence_length, vocab_size)
-        logits = self.fc_out(self.ln_f(embeddings))
+        logits = self.fc_out(self.ln_f(ffn_output))
 
         loss = None
         if targets is not None:
             batch_size, sequence_length, vocab_size_out = logits.shape
-            logits = logits.reshape(batch_size * sequence_length,
-                                    vocab_size_out)
+            logits = logits.reshape(
+                batch_size * sequence_length, vocab_size_out)
             targets = targets.reshape(batch_size * sequence_length)
             loss = F.cross_entropy(logits, targets)
 

@@ -18,7 +18,15 @@ import tiktoken
 sys.stdout = io.TextIOWrapper(sys.stdout.detach(), encoding='utf-8')
 
 
-def simple_tokenizer(text):
+def read_txt():
+    # Read the input file
+    with open('./runs/input.txt', 'r', encoding='utf-8') as f:
+        text = f.read()
+    return text
+
+
+def basic_tokenizer():
+    text = read_txt()
     # Custom preprocessing for numbers: Replace all numbers with a <NUM> token
     text = re.sub(r'\d+', '<NUM>', text)
     # Tokenize the text: match words, punctuation, and newlines
@@ -28,11 +36,11 @@ def simple_tokenizer(text):
     tokens = special_tokens + tokens
     # Create a vocabulary mapping each unique token to a unique integer
     vocab = {token: idx for idx, token in enumerate(sorted(set(tokens)))}
-
     return tokens, vocab
 
 
-def advanced_tokenizer(text):
+def advanced_tokenizer():
+    text = read_txt()
     # Custom preprocessing for numbers: Replace all numbers with a <NUM> token
     text = re.sub(r'\d+', '<NUM>', text)
     # Initialize tiktoken's GPT-3 tokenizer
@@ -47,28 +55,17 @@ def advanced_tokenizer(text):
     tokens = special_tokens + tokens
     # Create a vocabulary mapping each unique token to a unique integer
     vocab = {token: idx for idx, token in enumerate(sorted(set(tokens)))}
-
     return tokens, vocab
 
 
-def main(use_simple_tokenizer):
-    print("Using basic tokenizer" if use_simple_tokenizer else
+def main(use_basic_tokenizer):
+    print("Using basic tokenizer" if use_basic_tokenizer else
           "Using tiktoken")
-    # Read the input file
-    with open('./runs/input.txt', 'r', encoding='utf-8') as f:
-        text = f.read()
 
-    if use_simple_tokenizer:
-        tokens, vocab = simple_tokenizer(text)
+    if use_basic_tokenizer:
+        tokens, vocab = basic_tokenizer()
     else:
-        tokens, vocab = advanced_tokenizer(text)
-
-    # Check if placeholder_string exists in the vocabulary
-    if "placeholder_string" in tokens:
-        tokens = ['<CANTO_END>' if token == 'placeholder_string'
-                  else token for token in tokens]
-        if "placeholder_string" in vocab:
-            vocab["<CANTO_END>"] = vocab.pop("placeholder_string")
+        tokens, vocab = advanced_tokenizer()
 
     # Convert the list of tokens into a list of token IDs
     token_ids = [vocab.get(token, vocab.get("<UNK>")) for token in tokens]
@@ -91,10 +88,10 @@ def main(use_simple_tokenizer):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-s", "--use_simple_tokenizer", action="store_true",
+        "-b", "--use_basic_tokenizer", action="store_true",
         default=cfg.USE_BASIC_TOKENIZER,
-        help="Whether to use the simple tokenizer")
+        help="Whether to use the basic tokenizer")
 
     args = parser.parse_args()
 
-    main(args.use_simple_tokenizer)
+    main(args.use_basic_tokenizer)

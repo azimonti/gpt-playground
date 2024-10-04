@@ -36,16 +36,22 @@ To get started with these simulations, follow the steps below:
    python tokenizer.py
    ```
 
-5. **Run the Transformer Encoder**:
-   This will encode the tokenized input using the Transformer architecture:
+5. **Train the model**:
+   This will train the model:
    ```bash
-   python encoder_basic.py
+   python train_model.py
    ```
 
-6. **Run the Transformer Decoder**:
-   Use the decoder to generate text based on a given start sequence. You can modify the start sequence to test different inputs:
+6. **Run the model to generate some text**:
+   Use the trained model to generate text based on a given start sequence. You can modify the start sequence to test different inputs:
    ```bash
-   python decoder.py
+   python run_model.py
+   ```
+
+7. (Optional) **Run the model introspection**:
+   Use the introspection to check the number of parameters of the model. 
+   ```bash
+   python introspect_model.py
    ```
 
 ## Example
@@ -53,8 +59,8 @@ To get started with these simulations, follow the steps below:
 For a quick test, you can use the following steps:
 
 - Add text to `input.txt` and run the tokenizer.
-- Execute the encoder to process the data.
-- Experiment with different start sequences in `decoder.py` to generate diverse outputs.
+- Execute the training using these data.
+- Experiment with different start sequences in `run_model.py` to generate diverse outputs.
 
 ## License
 

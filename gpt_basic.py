@@ -75,6 +75,34 @@ class MyGPT(nn.Module):
             generated_ids,
             dtype=torch.long).unsqueeze(0).to(input_ids.device)
 
+    def introspect(self, compile_model=True, device='cpu'):
+        """
+        Prints the model architecture, parameters,
+                and the total number of parameters.
+        Optionally compiles the model using `torch.compile`.
+
+        Parameters:
+        - compile_model (bool): If True, compiles the model
+                using torch.compile().
+        """
+        # Move the model to the specified device
+        self.to(device)
+        # Compile the model if requested
+        if compile_model:
+            self = torch.compile(self)
+        # Print the model architecture
+        print(self)
+        # Print model configuration
+        print(f"\nModel Configuration:\n"
+              f"Vocab Size: {self.wte.num_embeddings}\n"
+              f"Embedding Dimension (d_model): "
+              f"{self.wte.embedding_dim}\n")
+        # Calculate total trainable parameters
+        total_params = sum(p.numel() for p in self.parameters()
+                           if p.requires_grad)
+        print(f"Total Parameters: {total_params:,} "
+              f"({round(total_params / 1_000_000)}M)\n")
+
 
 if __name__ == "__main__":
     pass

@@ -3,7 +3,7 @@
 /****************/
 /*   gpt.py     */
 /*  Version 2.0 */
-/*  2024/10/02  */
+/*  2024/10/04  */
 /****************/
 '''
 import math
@@ -126,66 +126,129 @@ def top_k_logits(logits, k):
     return out
 
 
-class MyGPT(nn.Module):
-    def __init__(self, vocab_size, d_model, max_len=5000,
-                 hidden_dim=2048, use_multiple_head=True, num_heads=8):
-        """
-        Initializes the GPT model
+class MyGPTBlock(nn.Module):
+    """
+    Defines a single GPT block, which includes
+            multi-head attention and feed-forward network.
+    """
 
-        Parameters:
-        - vocab_size (int): The size of the vocabulary.
-        - d_model (int): The dimensionality of the embeddings and model.
-        - num_heads (int): The number of attention heads
-                for multi-head attention (default: 8)
-        - max_len (int): The maximum length of input sequences (default: 5000)
-        - hidden_dim (int): The dimensionality of the hidden layer
-                in the feedforward network (default: 2048).
-        - use_multiple_head (bool): If True, uses multi-head attention;
-                if False, uses single-head attention (default: True).
-        """
+    def __init__(self, d_model, hidden_dim, dropout_prob, num_heads,
+                 use_multiple_head):
         super().__init__()
-        # Word token embeddings
-        self.wte = nn.Embedding(vocab_size, d_model)
-        # Positional encoding
-        self.pe = PositionalEncoding(d_model, max_len)
-
-        # Attention layer: Switch between single-head or multi-head attention
+        # Attention layer
         if use_multiple_head:
             self.attention = MultiHeadAttention(d_model, num_heads)
         else:
             self.attention = SingleHeadAttention(d_model)
 
         # Feedforward neural network
-        self.ffn = FeedForwardNN(d_model, hidden_dim)
+        self.ffn = nn.Sequential(
+            nn.Linear(d_model, hidden_dim),  # Expansion
+            nn.GELU(),                      # Activation
+            nn.Linear(hidden_dim, d_model)   # Compression
+        )
+        # Layer normalization
+        self.ln1 = nn.LayerNorm(d_model)
+        self.ln2 = nn.LayerNorm(d_model)
+        # Dropout for regularization (optional)
+        self.dropout = nn.Dropout(dropout_prob)
+
+    def forward(self, x):
+        # Apply attention and layer norm
+        attn_out = self.attention(x)
+        x = self.ln1(x + attn_out)  # Residual connection
+
+        # Apply feed-forward network and layer norm
+        ffn_out = self.ffn(x)
+        x = self.ln2(x + ffn_out)   # Residual connection
+        x = self.dropout(x)         # Apply dropout
+        return x
+
+
+class MyGPT(nn.Module):
+    """
+    Stacks multiple GPT blocks to create a full GPT model.
+    """
+
+    def __init__(self, vocab_size, d_model, max_len, hidden_dim,
+                 dropout_prob, n_layers, num_heads,
+                 use_multiple_head):
+        """
+        Initializes the modular GPT model with stacked layers.
+
+        Parameters:
+        - vocab_size (int): Size of the vocabulary.
+        - d_model (int): Dimensionality of embeddings and model.
+        - num_heads (int): Number of attention heads for multi-head attention.
+        - max_len (int): Maximum length of input sequences.
+        - hidden_dim (int): Hidden layer dimension for feed-forward network.
+        - n_layers (int): Number of stacked GPT blocks (transformer layers).
+        - use_multiple_head (bool): Whether to use multi-head attention
+                or single-head.
+        """
+        super().__init__()
+        self.vocab_size = vocab_size
+        self.d_model = d_model
+        self.max_len = max_len
+        self.hidden_dim = hidden_dim
+        self.dropout_prob = dropout_prob
+        self.num_heads = num_heads
+        self.n_layers = n_layers
+        self.use_multiple_head = use_multiple_head
+
+        # Word token embeddings
+        self.wte = nn.Embedding(vocab_size, d_model)
+        # Positional encoding
+        self.pe = PositionalEncoding(d_model, max_len)
+
+        # Stack multiple GPT blocks
+        self.blocks = nn.ModuleList([
+            MyGPTBlock(d_model, hidden_dim, dropout_prob,
+                       num_heads, use_multiple_head)
+            for _ in range(n_layers)
+        ])
+
         # Final layer norm
         self.ln_f = nn.LayerNorm(d_model)
-        # Output layer
+        # Output projection layer
         self.fc_out = nn.Linear(d_model, vocab_size)
 
     def forward(self, inputs, targets=None):
+        """
+        Forward pass through the model.
+
+        Parameters:
+        - inputs (torch.Tensor): Input tensor of token indices.
+        - targets (torch.Tensor, optional): Target tensor of token
+                indices for loss computation.
+
+        Returns:
+        - logits (torch.Tensor): The output predictions (logits) of the model.
+        - loss (torch.Tensor or None): The computed loss if targets
+                are provided, otherwise None.
+        """
         # (batch_size, sequence_length, d_model)
         embeddings = self.wte(inputs)
-        # Add positional encoding
-        embeddings = self.pe(embeddings)
-        # Apply attention (either single or multi-head based on init flag)
-        attn_output = self.attention(embeddings)
-        # Pass through feedforward NN
-        ffn_output = self.ffn(attn_output)
+
+        # Apply final layer normalization and output projection
         # (batch_size, sequence_length, vocab_size)
-        logits = self.fc_out(self.ln_f(ffn_output))
+        logits = self.fc_out(self.ln_f(embeddings))
 
         loss = None
         if targets is not None:
+            # Flatten logits and targets for loss computation
             batch_size, sequence_length, vocab_size_out = logits.shape
             logits = logits.reshape(
                 batch_size * sequence_length, vocab_size_out)
             targets = targets.reshape(batch_size * sequence_length)
+
+            # Compute cross-entropy loss
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
 
-    def generate(self, inputs, max_new_tokens, temperature=1.0,
-                 top_k=None, context_length=None):
+    def generate(self, inputs, max_new_tokens, temperature,
+                 top_k, context_length):
         """
         Generate new tokens based on the input sequence
 
@@ -200,8 +263,8 @@ class MyGPT(nn.Module):
                 for the input sequence.
 
         Returns:
-        - output (torch.Tensor): Generated sequence
-                including the input sequence.
+        - output (torch.Tensor): Generated sequence including
+            the input sequence.
         """
         # Initialize the output with the input sequence
         output = inputs.clone()
@@ -212,9 +275,8 @@ class MyGPT(nn.Module):
                 inputs = output[:, -context_length:]
             else:
                 inputs = output
-
-            # Forward pass through the model (doesn't need to pass targets)
-            logits, _ = self(inputs)
+            # Forward pass through the model
+            logits, _ = self(inputs)  # Only use the logits, ignore the loss
             # Get logits for the last token in the sequence
             logits = logits[:, -1, :]
             # Apply temperature scaling to control randomness
@@ -229,6 +291,42 @@ class MyGPT(nn.Module):
             # Append the predicted token to the sequence
             output = torch.cat([output, next_token], dim=1)
         return output
+
+    def introspect(self, compile_model=True, device='cpu'):
+        """
+        Prints the model architecture, parameters, and the total
+                number of parameters.
+        Optionally compiles the model using `torch.compile`.
+
+        Parameters:
+        - compile_model (bool): If True, compiles the model
+                using torch.compile().
+        """
+        # Move the model to the specified device
+        self.to(device)
+        # Compile the model if requested
+        if compile_model:
+            self = torch.compile(self)
+
+        # Print the model architecture
+        print(self)
+
+        # Print model configuration
+        print(f"\nModel Configuration:\n"
+              f"Vocab Size: {self.vocab_size}\n"
+              f"Embedding Dim (d_model): {self.d_model}\n"
+              f"Max Sequence Length: {self.max_len}\n"
+              f"Hidden Dimension: {self.hidden_dim}\n"
+              f"Dropout Probability: {self.dropout_prob}\n"
+              f"Number of Attention Heads: {self.num_heads}\n"
+              f"Number of Layers: {self.n_layers}\n"
+              f"Using Multi-Head Attention: {self.use_multiple_head}\n")
+
+        # Calculate total trainable parameters
+        total_params = sum(p.numel() for p in self.parameters()
+                           if p.requires_grad)
+        print(f"Total Parameters: {total_params:,} "
+              f"({round(total_params / 1_000_000)}M)\n")
 
 
 if __name__ == "__main__":

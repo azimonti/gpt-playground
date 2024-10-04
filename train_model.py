@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 '''
-/*********************/
-/* training_model.py */
-/*    Version 1.1    */
-/*     2024/10/02    */
-/*********************/
+/******************/
+/* train_model.py */
+/* Version 2.0    */
+/*  2024/10/04    */
+/******************/
 '''
 import argparse
 from gpt_basic import MyGPT as GPT_basic
@@ -15,6 +15,10 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from mod_config import training_model_cfg as cfg
 from mod_logging import TorchLogger, UtilityLogger as ul
+
+
+# set the random seed
+torch.manual_seed(345194)
 
 
 class TokenDataset(Dataset):
@@ -36,10 +40,10 @@ class TokenDataset(Dataset):
 
 def main(train_batch_size, eval_batch_size, context_length, train_split,
          learning_rate, d_model, num_epochs, nw, nt, eval_epoch_step,
-         use_simple_model, max_length, hidden_dimension, use_multiple_head,
-         num_heads, continue_training):
+         use_basic_model, max_length, hidden_dimension, use_multiple_head,
+         num_heads, n_layers, dropout_prob, continue_training):
     start_time = time.time()
-    if use_simple_model:
+    if use_basic_model:
         print("Using basic model")
     else:
         if use_multiple_head:
@@ -81,33 +85,42 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
     t1 = ul.print_time(start_time, "Continuing training.." if continue_training
                        else "Start training..")
 
+    start_epoch = 0
+    log_dir = None
+
+    # If continue_training is set to True, load the model and the parameters
+    if continue_training:
+        checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
+        start_epoch = checkpoint['num_epochs']
+        vocab_size = checkpoint.get('vocab_size')
+        d_model = checkpoint.get('d_model')
+        log_dir = checkpoint.get('log_dir')
+        use_multiple_head = checkpoint.get('use_multiple_head')
+        num_heads = checkpoint.get('num_heads')
+        max_length = checkpoint.get('max_length')
+        hidden_dimension = checkpoint.get('hidden_dimension')
+        learning_rate = checkpoint.get('learning_rate')
+        context_length = checkpoint.get('context_length')
+        n_layers = checkpoint.get('n_layers')
+        dropout_prob = checkpoint.get('dropout_prob')
+
     # Initialize model
-    if (use_simple_model):
+    if (use_basic_model):
         model = GPT_basic(vocab_size=vocab_size, d_model=d_model).to(device)
     else:
         model = GPT_v2(
             vocab_size=vocab_size, d_model=d_model, max_len=max_length,
-            hidden_dim=hidden_dimension, use_multiple_head=use_multiple_head,
-            num_heads=num_heads).to(device)
+            hidden_dim=hidden_dimension, dropout_prob=dropout_prob,
+            n_layers=n_layers, num_heads=num_heads,
+            use_multiple_head=use_multiple_head).to(device)
 
+    if continue_training:
+        model.load_state_dict(checkpoint['state_dict'])
     # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    start_epoch = 0
-    log_dir = None
-    # If continue_training is set to True, load the model and the parameters
     if continue_training:
-        checkpoint = torch.load('./runs/gpt_model.pth', weights_only=False)
-        model.load_state_dict(checkpoint['state_dict'])
-        start_epoch = checkpoint['num_epochs']  # Load the epoch number
-        vocab_size = checkpoint.get('vocab_size')  # Load vocab size
-        d_model = checkpoint.get('d_model')  # Load model dimension
-        log_dir = checkpoint.get('log_dir', None)  # Load log directory
-        use_multiple_head = checkpoint.get('use_multiple_head', False)
-        num_heads = checkpoint.get('num_heads', 8)  # Load number of heads
-        max_length = checkpoint.get('max_length', 5000)  # Load max length
-        hidden_dimension = checkpoint.get('hidden_dimension', 2048)
-
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     # Initialize TorchLogger
     logger = TorchLogger(log_dir=log_dir)
 
@@ -175,12 +188,17 @@ def main(train_batch_size, eval_batch_size, context_length, train_split,
         'd_model': d_model,
         'num_epochs': num_epochs + start_epoch,
         'state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
         'log_dir': TorchLogger.get_log_dir(),
-        'use_simple_model': use_simple_model,
+        'use_basic_model': use_basic_model,
         'use_multiple_head': use_multiple_head,  # Save multiple head setting
         'num_heads': num_heads,  # Save number of heads
         'max_length': max_length,  # Save max length
-        'hidden_dimension': hidden_dimension  # Save hidden dimension
+        'hidden_dimension': hidden_dimension,  # Save hidden dimension
+        'dropout_prob': dropout_prob,  # Save dropout orobability
+        'learning_rate': learning_rate,  # Save learning rate
+        'context_length': context_length,  # Save context length
+        'n_layers': n_layers  # Save number of GPT blocks
     }, './runs/gpt_model.pth')
 
     # Close the logger when done
@@ -222,9 +240,9 @@ if __name__ == "__main__":
         "-es", "--eval-epoch-step", type=int, default=cfg.EVAL_EPOCH_STEP,
         help="Number of threads")
     parser.add_argument(
-        "-s", "--use_simple_model", action="store_true",
+        "-b", "--use_basic_model", action="store_true",
         default=cfg.USE_BASIC_MODEL,
-        help="Whether to use the simple model")
+        help="Whether to use the basic model")
     parser.add_argument(
         "-c", "--continue_training", action="store_true", default=False,
         help="Whether to continue training from a checkpoint")
@@ -241,6 +259,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "-nh", "--num-heads", type=int, default=cfg.NUM_HEADS,
         help="Number of multiple heads")
+    parser.add_argument(
+        "-nl", "--n-layers", type=int,
+        default=cfg.N_LAYERS,
+        help="Number of stacked GPT blocks/layers (default: 8)")
+    parser.add_argument(
+        "-dp", "--dropout-prob", type=float,
+        default=cfg.DROPOUT_PROB,
+        help="Dropout probability to prevent overfitting (default: 0.1)")
+
     args = parser.parse_args()
 
     if args.nw > 1:
@@ -259,10 +286,12 @@ if __name__ == "__main__":
         nw=args.nw,
         nt=args.nt,
         eval_epoch_step=args.eval_epoch_step,
-        use_simple_model=args.use_simple_model,
+        use_basic_model=args.use_basic_model,
         max_length=args.max_length,
         hidden_dimension=args.hidden_dimension,
         use_multiple_head=args.use_multiple_head,
         num_heads=args.num_heads,
+        n_layers=args.n_layers,
+        dropout_prob=args.dropout_prob,
         continue_training=args.continue_training
     )

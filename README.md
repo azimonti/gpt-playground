@@ -54,6 +54,13 @@ To get started with these simulations, follow the steps below:
    python introspect_model.py
    ```
 
+
+7. (Optional) **Plot the loss**:
+   Once one or more run is completed, in addition to tensorboard, it is possible to plot the loss (and will be save on a file). Adding `-vl` will plot also the validation loss.
+   ```bash
+   python plot_loss.py -d [LOGDIR] [-vl] 
+   ```
+
 ## Example
 
 For a quick test, you can use the following steps:
@@ -61,6 +68,10 @@ For a quick test, you can use the following steps:
 - Add text to `input.txt` and run the tokenizer.
 - Execute the training using these data.
 - Experiment with different start sequences in `run_model.py` to generate diverse outputs.
+
+The following plot illustrates the results of a 500-epoch run:
+
+![Loss plot example](screenshots/500_epochs_run.png)
 
 ## License
 

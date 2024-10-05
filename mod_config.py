@@ -33,7 +33,7 @@ training_model_cfg = SimpleNamespace(
     NUM_THREADS=1,
     # Validation Epoch Step
     EVAL_EPOCH_STEP=10,
-    # Whether to use the basic model
+    # Use the basic model
     USE_BASIC_MODEL=False,
     # Maximum length of input sequences
     MAX_LENGTH=512,
@@ -55,7 +55,7 @@ tokenizer_cfg = SimpleNamespace(
 )
 
 run_model_cfg = SimpleNamespace(
-    # Whether to use the basic model
+    # Use the basic model
     USE_BASIC_MODEL=False,
     # Number of new tokens to generate
     MAX_NEW_TOKENS=50,
@@ -66,10 +66,20 @@ run_model_cfg = SimpleNamespace(
 )
 
 introspect_model_cfg = SimpleNamespace(
-    # Whether to use the basic model
+    # Use the basic model
     USE_BASIC_MODEL=False
 )
 
+plot_cfg = SimpleNamespace(
+    # Plot the validation loss
+    PLOT_VALIDATION_LOSS=False,
+    # Use Simple Moving Average (SMA) for smoothing the loss
+    USE_SMA=False,
+    # Alpha for exponential moving average (EMA)
+    EMA_ALPHA=0.5,
+    # Set the window size for SMA
+    SMA_WINDOW_SIZE=10
+)
 
 if __name__ == "__main__":
     pass

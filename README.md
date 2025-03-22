@@ -30,7 +30,7 @@ To get started with these simulations, follow the steps below:
    pip install -r requirements.txt
    ```
 
-4. **Prepare your input data**: 
+4. **Prepare your input data**:
    Add an `input.txt` file under the `runs` directory with the text you'd like to tokenize. Then run the tokenizer:
    ```bash
    python tokenizer.py
@@ -49,7 +49,7 @@ To get started with these simulations, follow the steps below:
    ```
 
 7. (Optional) **Run the model introspection**:
-   Use the introspection to check the number of parameters of the model. 
+   Use the introspection to check the number of parameters of the model.
    ```bash
    python introspect_model.py
    ```
@@ -58,7 +58,7 @@ To get started with these simulations, follow the steps below:
 7. (Optional) **Plot the loss**:
    Once one or more run is completed, in addition to tensorboard, it is possible to plot the loss (and will be save on a file). Adding `-vl` will plot also the validation loss.
    ```bash
-   python plot_loss.py -d [LOGDIR] [-vl] 
+   python plot_loss.py -d [LOGDIR] [-vl]
    ```
 
 ## Example
@@ -75,7 +75,7 @@ The following plot illustrates the results of a 500-epoch run:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
